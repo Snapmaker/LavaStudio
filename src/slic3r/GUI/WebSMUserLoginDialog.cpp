@@ -162,7 +162,7 @@ void SMUserLogin::OnNavigationRequest(wxWebViewEvent &evt)
     wxString tmpUrl = evt.GetURL();
     
     size_t start = tmpUrl.find("token=");
-    if (tmpUrl.Contains(m_accountUrl) && start != std::string::npos) {
+    if (start != std::string::npos) {
         std::string token;
         
         start += std::string("token=").size(); // 跳过"token="的长度
