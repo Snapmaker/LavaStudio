@@ -158,7 +158,6 @@ void SMUserLogin::OnIdle(wxIdleEvent &WXUNUSED(evt))
  */
 void SMUserLogin::OnNavigationRequest(wxWebViewEvent &evt)
 {
-    //wxLogMessage("%s", "Navigation request to '" + evt.GetURL() + "'(target='" + evt.GetTarget() + "')");
     wxString tmpUrl = evt.GetURL();
     
     size_t start = tmpUrl.find("token=");
@@ -185,7 +184,7 @@ void SMUserLogin::OnNavigationRequest(wxWebViewEvent &evt)
             http.on_complete([&](std::string body, unsigned status) {
                     if (status == 200) {
                         json response = json::parse(body);
-                        wxGetApp().CallAfter([response]() {
+                        wxGetApp().CallAfter([this, response]() {
                             if (response.count("data")) {
                                 json data = response["data"];
                                 if (data.count("nickname")) {
@@ -195,6 +194,9 @@ void SMUserLogin::OnNavigationRequest(wxWebViewEvent &evt)
                                     wxGetApp().sm_get_userinfo()->set_user_icon_url(data["icon"].get<std::string>());
                                 }
                             }
+
+                            wxLaunchDefaultBrowser(m_home_url);
+                            this->Hide();
                         });
                     }
                 })
@@ -205,6 +207,9 @@ void SMUserLogin::OnNavigationRequest(wxWebViewEvent &evt)
         });
         this->RunScript("document.cookie = '';");
         load_url(m_home_url);
+    }else if(tmpUrl.find("/logout") != std::string::npos){
+        this->Hide();
+        wxLaunchDefaultBrowser(m_home_url);
     }
     UpdateState();
 }
