@@ -38,7 +38,10 @@
 			<img id="UserAvatarIcon" src="img/c.jpg" onerror="this.onerror=null;this.src='img/c.jpg';" />
 		</div>
 		<div id="UserName" class="TextS1"></div>
-		<div id="LogoutBtn" class="Btn trans" tid="t50" onClick="OnLogOut()">log out</div>
+		<div style="display: flex; align-items: center;">
+			<div id="LogoutBtn" class="Btn trans" tid="t50" style="margin-right: 10px;" onClick="OnLogOut()">log out</div>
+			<div id="ChangeUserBtn" class = "Btn trans" onClick="OnChangeUser()">change user</div>
+		</div>
 	</div>	
 		
 	<div id="NoPluginTip">	
@@ -168,7 +171,13 @@
 	
 </div>
 
-</div>	
+</div>
+<div id="ChangeUserPopup" class="popup" style="display:none; position:absolute; z-index:1000; background:white; border:1px solid #ccc; padding: 20px;">
+    <h3>Change User</h3>
+    <p>这里是自定义内容，可以是用户信息或者其他你想展示的内容。</p>
+	<div id="user_cards"></div>
+    <button onclick="closePopup()">关闭</button>
+</div>
 </body>
 <script type="text/javascript">
 	//HandleStudio(TestData);

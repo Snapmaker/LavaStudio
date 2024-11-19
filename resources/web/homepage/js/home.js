@@ -138,6 +138,8 @@ function HandleStudio( pVal )
   } else if (strCmd == "studio_userlogin") {
     SetLoginInfo(pVal["data"]["avatar"], pVal["data"]["name"]);
 	NotifyModelPagetoLogIn(pVal["data"]["avatar"]);
+  } else if(strCmd == "studio_get_recent_users"){
+	OnRecentUserDataArrived(pVal["data"]);
   } else if (strCmd == "studio_useroffline") {
     SetUserOffline();
 	NotifyModelPagetoLogOut();
@@ -592,6 +594,58 @@ function OnLogOut()
 	tSend['command']="homepage_logout";
 
 	SendWXMessage( JSON.stringify(tSend) );	
+}
+
+// 关闭弹出视图的函数
+function closePopup() {
+    $("#ChangeUserPopup").hide(); // 隐藏弹出视图
+}
+
+function OnChangeUser()
+{
+	var tSend = {};
+    tSend['sequence_id'] = Math.round(new Date() / 1000);
+    tSend['command'] = "homepage_get_recent_user";
+
+    SendWXMessage(JSON.stringify(tSend));
+}
+
+function OnUserCardClick(user_id)
+{
+	var tSend = {};
+    tSend['sequence_id'] = Math.round(new Date() / 1000);
+    tSend['command'] = "homepage_change_user";
+	tSend['data']={};
+	tSend['data']['user_id']=user_id;
+
+    SendWXMessage(JSON.stringify(tSend));
+}
+
+function OnRecentUserDataArrived(users){
+	$('#user_cards').html("");
+	for(let i = 0; i < users.length; i++){
+		var user_card = document.createElement('div')
+		user_card.onclick = function() {
+			OnUserCardClick(users[i]["user_id"]);
+		}
+		user_card.className = 'UserCard';
+		user_card.innerHTML = '<img src="' + users[i]['user_icon'] + '?image_process=resize,w_100/format,webp" alt="Avatar" />' +
+			'<div class="UserInfo">' + users[i]['user_name'] + '</div>';
+
+		$('#user_cards').append(user_card);
+	}
+
+	// 显示弹出视图
+    var popup = $("#ChangeUserPopup");
+    var button = $("#ChangeUserBtn");
+
+    // 计算按钮位置，设置弹出视图的位置并显示它
+    var offset = button.offset();
+    popup.css({
+        top: offset.top + button.outerHeight(),
+        left: offset.left,
+        display: 'block' // 显示弹出视图
+    });
 }
 
 function BeginDownloadNetworkPlugin()

@@ -220,6 +220,12 @@ public:
 class GUI_App : public wxApp
 {
 public:
+    // util
+    std::vector<unsigned char> Encrypt(const std::string& plaintext, const std::string& key);
+
+    std::string Decrypt(const std::vector<unsigned char>& ciphertext, const std::string& key);
+
+public:
 
     //BBS: remove GCodeViewer as seperate APP logic
     enum class EAppMode : unsigned char
@@ -460,17 +466,30 @@ private:
 
         std::string get_user_icon_url() { return m_login_user_icon_url; }
         void     set_user_icon_url(const std::string& url) { m_login_user_icon_url = url; }
+
+        long long   get_user_info_time() { return m_login_user_time; }
+        void     set_user_info_time(long long time) { m_login_user_time = time; }
+
+        bool     get_need_update() { return m_need_update; }
+        void     set_need_update(bool need) { m_need_update = need; }
+
+        long long get_user_login_id() { return m_login_user_id; }
+        void      set_user_login_id(long long id) { m_login_user_id = id; }
     private:
+        long long   m_login_user_id       = -1;
         std::string m_login_user_name = "";
         std::string m_login_user_token = "";
         std::string m_login_user_icon_url = "";
+        long long   m_login_user_time = -1;
         bool     m_login = false;
+        bool     m_need_update = false;
     };
     SMUserInfo*     sm_get_userinfo() { return &m_login_userinfo; }
     void            sm_get_login_info();
     void            sm_request_login(bool show_user_info = false);
     void            sm_ShowUserLogin(bool show  =  true);
     void            sm_request_user_logout();
+    void            sm_change_user_login(long long user_id);
 
     void            request_user_login(int online_login = 0);
     void            request_user_handle(int online_login = 0);
@@ -698,6 +717,11 @@ private:
     void            restart_networking();
     void            check_config_updates_from_updater() { check_updates(false); }
 
+    void            read_userInfos();
+    void            write_userInfos();
+    void            update_userInfos();
+    void            update_Login_user();
+
 private:
     int             updating_bambu_networking();
     bool            on_init_inner();
@@ -729,6 +753,11 @@ private:
     std::string             m_open_method;
 
     SMUserInfo m_login_userinfo;
+
+    std::string m_afs_key = "SnapmakerOrcaSnapmakerOr";
+
+public:
+    std::map<long long, SMUserInfo> m_userInfos;
 };
 
 DECLARE_APP(GUI_App)

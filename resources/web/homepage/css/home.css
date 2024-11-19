@@ -164,6 +164,26 @@ body
 	width: 80%;
 }
 
+#ChangeUserBtn
+{
+	font-size: 14px;
+	height: 24px;
+	line-height: 24px;
+	color: #4db6ac;
+	border: 1px solid  #009688;
+	border-radius: 4px;
+	cursor: pointer;
+	margin-top: 5px;
+	padding: 0px 8px;
+}
+
+#ChangeUserBtn:hover
+{
+	background: #00f0d8;
+	color: #fff;
+}
+
+
 #LogoutBtn
 {
 	font-size: 14px;

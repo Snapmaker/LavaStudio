@@ -37,6 +37,12 @@ body
 	color: #efeff0;
 }
 
+#ChangeUserBtn:hover
+{
+	background: #223C3C;
+	color: #efeff0;
+}
+
 .BtnItem
 {
 	color:#B3B3B5;

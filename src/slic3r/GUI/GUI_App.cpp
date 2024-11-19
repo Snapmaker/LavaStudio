@@ -100,6 +100,11 @@
 #include "Widgets/Label.hpp"
 #include "Widgets/ProgressDialog.hpp"
 
+#include "boost/algorithm/hex.hpp"
+#include "openssl/aes.h"
+#include "openssl/rand.h"
+#include "openssl/evp.h"
+
 //BBS: DailyTip and UserGuide Dialog
 #include "WebDownPluginDlg.hpp"
 #include "WebGuideDialog.hpp"
@@ -2133,6 +2138,8 @@ int GUI_App::OnExit()
         BOOST_LOG_TRIVIAL(error) << "Failed to clean up encrypt bbl network log file";
     }
 
+    write_userInfos();
+
     return wxApp::OnExit();
 }
 
@@ -2151,8 +2158,267 @@ class wxBoostLog : public wxLog
     }
 };
 
+
+std::vector<unsigned char> GUI_App::Encrypt(const std::string& plaintext, const std::string& key)
+{
+    if (key.length() != 24) {
+        return {};
+    }
+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        return {};
+    }
+
+    // Generate a random IV
+    unsigned char iv[EVP_MAX_IV_LENGTH];
+    if (!RAND_bytes(iv, sizeof(iv))) {
+        EVP_CIPHER_CTX_free(ctx);
+        return {};
+    }
+
+    // Initialize the encryption context with the cipher and IV
+    if (1 != EVP_EncryptInit_ex(ctx, EVP_des_ede3_cbc(), NULL, reinterpret_cast<const unsigned char*>(key.c_str()), iv)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return {};
+    }
+
+    // Calculate the buffer size for ciphertext
+    int                        len            = plaintext.length();
+    int                        ciphertext_len = len + EVP_MAX_BLOCK_LENGTH;
+    std::vector<unsigned char> ciphertext(ciphertext_len);
+
+    // Perform the encryption
+    int outlen = 0;
+    if (1 != EVP_EncryptUpdate(ctx, ciphertext.data(), &outlen, reinterpret_cast<const unsigned char*>(plaintext.c_str()), len)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return {};
+    }
+
+    // Finalize the encryption
+    int final_len = 0;
+    if (1 != EVP_EncryptFinal_ex(ctx, ciphertext.data() + outlen, &final_len)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return {};
+    }
+
+    // Clean up
+    EVP_CIPHER_CTX_free(ctx);
+
+    // Resize the ciphertext to the actual length
+    ciphertext.resize(outlen + final_len);
+
+    // Prepend the IV to the ciphertext
+    std::vector<unsigned char> result(iv, iv + sizeof(iv));
+    result.insert(result.end(), ciphertext.begin(), ciphertext.end());
+
+    return result;
+}
+
+std::string GUI_App::Decrypt(const std::vector<unsigned char>& ciphertext_with_iv, const std::string& key)
+{
+    if (key.length() != 24 || ciphertext_with_iv.size() < EVP_MAX_IV_LENGTH) {
+        return "";
+    }
+
+    const unsigned char*             iv = ciphertext_with_iv.data();
+    const std::vector<unsigned char> ciphertext(ciphertext_with_iv.begin() + EVP_MAX_IV_LENGTH, ciphertext_with_iv.end());
+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        return "";
+    }
+
+    // Initialize the decryption context with the cipher, key, and IV
+    if (1 != EVP_DecryptInit_ex(ctx, EVP_des_ede3_cbc(), NULL, reinterpret_cast<const unsigned char*>(key.c_str()), iv)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return "";
+    }
+
+    // Calculate the buffer size for plaintext
+    int         len           = ciphertext.size();
+    int         plaintext_len = len + EVP_MAX_BLOCK_LENGTH;
+    std::string plaintext(plaintext_len, '\0');
+
+    // Perform the decryption
+    int outlen = 0;
+    if (1 != EVP_DecryptUpdate(ctx, reinterpret_cast<unsigned char*>(&plaintext[0]), &outlen, ciphertext.data(), len)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return "";
+    }
+
+    // Finalize the decryption
+    int final_len = 0;
+    if (1 != EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char*>(&plaintext[outlen]), &final_len)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return "";
+    }
+
+    // Clean up
+    EVP_CIPHER_CTX_free(ctx);
+
+    // Resize the plaintext to the actual length
+    plaintext.resize(outlen + final_len);
+
+    return plaintext;
+}
+
+
+void GUI_App::read_userInfos() {
+    auto userInfo_folder = boost::filesystem::path(data_dir()) / "sm_user_infos";
+    if (!boost::filesystem::exists(userInfo_folder)) {
+        boost::filesystem::create_directory(userInfo_folder);
+    }
+
+    boost::filesystem::path user_file(userInfo_folder / "user.enc");
+    if (!boost::filesystem::exists(user_file)) {
+        std::ofstream ofs(user_file.string(), std::ios::out);
+        ofs.close();
+    }
+
+    std::ifstream file(user_file.string(), std::ios::in);
+    if (file) {
+        std::string line;
+        int         index = 0;
+        std::string encrypted_userId_hex, encrypted_username_hex, encrypted_token_hex, encrypted_time_hex, encrypted_icon_hex, encrypted_islogin_hex;
+        while (std::getline(file, line)) {
+            switch (index % 6) {
+            case 0: encrypted_userId_hex = line; break;
+            case 1: encrypted_username_hex = line; break;
+            case 2: encrypted_token_hex = line; break;
+            case 3: encrypted_time_hex = line; break;
+            case 4: encrypted_icon_hex = line; break;
+            default: encrypted_islogin_hex = line; break;
+            }
+
+            if (index % 6 == 5) {
+                std::vector<unsigned char> encrypted_userId ,encrypted_username, encrypted_token, encrypted_time, encrypted_icon, encrypted_islogin;
+                boost::algorithm::unhex(encrypted_userId_hex.begin(), encrypted_userId_hex.end(), std::back_inserter(encrypted_userId));
+                boost::algorithm::unhex(encrypted_username_hex.begin(), encrypted_username_hex.end(),
+                                        std::back_inserter(encrypted_username));
+                boost::algorithm::unhex(encrypted_token_hex.begin(), encrypted_token_hex.end(), std::back_inserter(encrypted_token));
+                boost::algorithm::unhex(encrypted_time_hex.begin(), encrypted_time_hex.end(), std::back_inserter(encrypted_time));
+                boost::algorithm::unhex(encrypted_icon_hex.begin(), encrypted_icon_hex.end(), std::back_inserter(encrypted_icon));
+                boost::algorithm::unhex(encrypted_islogin_hex.begin(), encrypted_islogin_hex.end(),
+                                        std::back_inserter(encrypted_islogin));
+
+                SMUserInfo  userInfo;
+                std::string key = m_afs_key;
+                userInfo.set_user_login_id(std::atoll(Decrypt(encrypted_userId, key).c_str()));
+                userInfo.set_user_name(Decrypt(encrypted_username, key));
+                userInfo.set_user_token(Decrypt(encrypted_token, key));
+                userInfo.set_user_icon_url(Decrypt(encrypted_icon, key));
+                userInfo.set_user_login(Decrypt(encrypted_islogin, key) == "false" ? false : true);
+                userInfo.set_user_info_time(std::atoll(Decrypt(encrypted_time, key).c_str()));
+
+                m_userInfos.insert({userInfo.get_user_login_id(), userInfo});
+            }
+            ++index;
+        }
+
+        file.close();
+    }
+
+    update_Login_user();
+
+    update_userInfos();
+}
+
+void GUI_App::write_userInfos() {
+    auto userInfo_folder = boost::filesystem::path(data_dir()) / "sm_user_infos";
+    if (!boost::filesystem::exists(userInfo_folder)) {
+        boost::filesystem::create_directory(userInfo_folder);
+    }
+
+    boost::filesystem::path user_file(userInfo_folder / "user.enc");
+    std::ofstream           ofs(user_file.string(), std::ios::out);
+
+    for (auto& info : m_userInfos) {
+        auto encrypt_userId   = Encrypt(std::to_string(info.second.get_user_login_id()), m_afs_key);
+        auto encrypt_username = Encrypt(info.second.get_user_name(), m_afs_key);
+        auto encrypt_token    = Encrypt(info.second.get_user_token(), m_afs_key);
+        auto encrypt_time     = Encrypt(std::to_string(info.second.get_user_info_time()), m_afs_key);
+        auto encrypt_icon     = Encrypt(info.second.get_user_icon_url(), m_afs_key);
+        auto encrypt_islogin  = Encrypt(info.second.is_user_login() ? "true" : "false", m_afs_key);
+
+        std::string encrypt_userId_hex;
+        std::string encrypt_username_hex;
+        std::string encrypt_token_hex;
+        std::string encrypt_time_hex;
+        std::string encrypt_icon_hex;
+        std::string encrypt_islogin_hex;
+
+        boost::algorithm::hex(encrypt_userId.begin(), encrypt_userId.end(), std::back_inserter(encrypt_userId_hex));
+        boost::algorithm::hex(encrypt_username.begin(), encrypt_username.end(), std::back_inserter(encrypt_username_hex));
+        boost::algorithm::hex(encrypt_token.begin(), encrypt_token.end(), std::back_inserter(encrypt_token_hex));
+        boost::algorithm::hex(encrypt_time.begin(), encrypt_time.end(), std::back_inserter(encrypt_time_hex));
+        boost::algorithm::hex(encrypt_icon.begin(), encrypt_icon.end(), std::back_inserter(encrypt_icon_hex));
+        boost::algorithm::hex(encrypt_islogin.begin(), encrypt_islogin.end(), std::back_inserter(encrypt_islogin_hex));
+
+        ofs << encrypt_userId_hex << std::endl;
+        ofs << encrypt_username_hex << std::endl;
+        ofs << encrypt_token_hex << std::endl;
+        ofs << encrypt_time_hex << std::endl;
+        ofs << encrypt_icon_hex << std::endl;
+        ofs << encrypt_islogin_hex << std::endl;
+    }
+
+    ofs.close();
+
+
+}
+
+void GUI_App::update_Login_user() {
+    for (auto& pair : m_userInfos) {
+        if (pair.second.is_user_login()) {
+            m_login_userinfo = pair.second;
+            break;
+        }
+    }
+
+    if (m_login_userinfo.is_user_login()) {
+        auto snmk_world = SnapmakerWorld::GetInstance();
+        if (snmk_world) {
+            snmk_world->Update_Login_State(
+                [this](bool token_valid) {
+                    if (token_valid) {
+                    } else {
+                        m_login_userinfo.set_user_login(false);
+                        m_login_userinfo.set_need_update(true);
+                        update_userInfos();
+
+                        int result = wxMessageBox(_L("登录状态已失效，是否重新登录？？"), _L("提示"), wxYES | wxNO, this->mainframe);
+                        if (result == wxYES) {
+                            sm_request_login();
+                        } else {
+                            return;
+                        }
+                    }
+                },
+                m_login_userinfo.get_user_token());
+        }
+    }
+}
+
+void GUI_App::update_userInfos() {
+    // update
+    wxDateTime now       = wxDateTime::Now();
+    long long  timestamp = (long long) (now.GetTicks());
+    for (auto it = m_userInfos.begin(); it != m_userInfos.end(); ++it) {
+        if (it->second.get_user_info_time() - timestamp > 3600 * 24 * 7) {
+            it = m_userInfos.erase(it);
+        }
+    }
+    if (m_login_userinfo.get_need_update()) {
+        m_login_userinfo.set_need_update(false);
+        m_userInfos[m_login_userinfo.get_user_login_id()] = m_login_userinfo;
+    }
+}
+
 bool GUI_App::on_init_inner()
 {
+    read_userInfos();
+
     wxLog::SetActiveTarget(new wxBoostLog());
 #if BBL_RELEASE_TO_PUBLIC
     wxLog::SetLogLevel(wxLOG_Message);
@@ -3658,10 +3924,33 @@ void GUI_App::sm_ShowUserLogin(bool show)
     }
 }
 
+void GUI_App::sm_change_user_login(long long user_id) {
+    if (m_login_userinfo.get_user_login_id() == user_id) {
+        return;
+    }
+    if (m_userInfos.count(user_id)) {
+        m_login_userinfo.set_user_login(false);
+        m_userInfos[m_login_userinfo.get_user_login_id()].set_user_login(false);
+
+        m_userInfos[user_id].set_user_login(true);
+
+        update_Login_user();
+    } else {
+        int result = wxMessageBox(_L("用户信息已过期！是否跳转至登录页面？？"), _L("提示"), wxYES | wxNO, this->mainframe);
+        if (result == wxYES) {
+            sm_request_login();
+        } else {
+            return;
+        }
+    }
+}
+
 void GUI_App::sm_request_user_logout()
 {
     if (m_login_userinfo.is_user_login()) {
         m_login_userinfo.set_user_login(false);
+        m_login_userinfo.set_need_update(true);
+        update_userInfos();
     }
     try {
         if (!sm_login_dlg) {
@@ -3995,6 +4284,31 @@ std::string GUI_App::handle_web_request(std::string cmd)
                     { 
                         wxString realurl = from_u8(url_decode(path.value()));
                         wxGetApp().request_model_download(realurl);
+                    }
+                }
+            } else if (command_str.compare("homepage_get_recent_user") == 0) {
+                json param;
+                param["command"]       = "studio_get_recent_users";
+                param["sequece_id"]    = "10001";
+
+                json data = json::array();
+                for (auto& info : m_userInfos) {
+                    json item                   = json::object();
+                    item["user_name"]           = info.second.get_user_name();
+                    item["user_icon"]           = info.second.get_user_icon_url();
+                    item["user_id"]             = info.second.get_user_login_id();
+                    data.push_back(item);
+                }
+                param["data"]          = data;
+                std::string get_recent_users_cmd = param.dump();
+                wxString    strJS      = wxString::Format("window.postMessage(%s)", get_recent_users_cmd);
+                GUI::wxGetApp().run_script(strJS);
+            } else if (command_str.compare("homepage_change_user") == 0) {
+                if (root.get_child_optional("data") != boost::none) {
+                    pt::ptree                    data_node = root.get_child("data");
+                    boost::optional<long long> user_id      = data_node.get_optional<long long>("user_id");
+                    if (user_id.has_value()) {
+                        sm_change_user_login(user_id.value());
                     }
                 }
             }

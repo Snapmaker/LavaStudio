@@ -188,6 +188,9 @@ public:
                         std::string               userId = "" /*todo: timerange*/);
 
 public:
+    void Update_Login_State(std::function<void(bool)> callback, std::string token);
+
+public:
     int GetPageSize() { return m_pageSize; }
 
 private:

@@ -1020,7 +1020,7 @@ void SnapmakerWorld::Get_Model_Detail(std::function<void(std::string)> callback,
 {
     // https: // id.snapmaker.com/api/model/info?modelId=
     auto http = Http::get(m_host_url + m_api_url_map["GET_MODEL_DETAIL"] + model_id);
-    http.on_complete([&](std::string body, unsigned status) {
+    http.on_complete([&, callback](std::string body, unsigned status) {
             json j_body = json::parse(body);
             if (j_body.count("msg") && j_body["msg"].get<std::string>() == "success") {
                 if (j_body.count("data")) {
@@ -1037,6 +1037,48 @@ void SnapmakerWorld::Get_Model_Detail(std::function<void(std::string)> callback,
             
         })
         .on_error([&](std::string body, std::string error, unsigned status) {
+        })
+        .perform();
+}
+
+void SnapmakerWorld::Update_Login_State(std::function<void(bool)> callback, std::string token) {
+    std::string                    url   = "https://account.snapmaker.com/api/common/accounts/current";
+    auto                           http  = Http::get(url);
+    http.header("authorization", token);
+    http.on_complete([&, callback](std::string body, unsigned status) {
+            if (status == 200) {
+                json response = json::parse(body);
+                wxGetApp().CallAfter([this, response, callback]() {
+                    if (response.count("code")) {
+                        json code = response["code"];
+                        int int_code = code.get<int>();
+                        if (int_code != 200) {
+                            callback(false);
+                        } else {
+                            if (response.count("data")) {
+                                json data = response["data"];
+                                if (data.count("nickname")) {
+                                    wxGetApp().sm_get_userinfo()->set_user_name(data["nickname"].get<std::string>());
+                                }
+                                if (data.count("icon")) {
+                                    wxGetApp().sm_get_userinfo()->set_user_icon_url(data["icon"].get<std::string>());
+                                }
+
+                                wxGetApp().sm_get_userinfo()->set_user_info_time((long long) (wxDateTime::Now().GetTicks()));
+
+                                wxGetApp().sm_get_userinfo()->set_need_update(true);
+                                wxGetApp().update_userInfos();
+                            }
+                            callback(true);
+                        }
+                    }
+                    
+                    
+                });
+            }
+        })
+        .on_error([&](std::string body, std::string error, unsigned status) {
+
         })
         .perform();
 }
