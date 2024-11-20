@@ -53,6 +53,8 @@ public:
     // abount login and user status
     void Update_Login_State(std::function<void(bool)> callback, std::string token);
 
+    void OnTokenInvalid();
+
     void read_userInfos();
 
     void        write_userInfos(GUI_App::SMUserInfo& info);

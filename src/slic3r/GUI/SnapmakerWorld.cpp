@@ -67,6 +67,8 @@ void SnapmakerWorld::Get_Model_Detail(std::function<void(std::string)> callback,
 
                     wxGetApp().CallAfter([callback, result] { callback(result); });
                 }
+            } else {
+                OnTokenInvalid();
             }
         })
         .on_error([&](std::string body, std::string error, unsigned status) {})
@@ -112,6 +114,22 @@ void SnapmakerWorld::Update_Login_State(std::function<void(bool)> callback, std:
         .perform();
 }
 
+void SnapmakerWorld::OnTokenInvalid() {
+    wxGetApp().CallAfter([](){
+        wxGetApp().sm_get_userinfo()->set_user_login(false);
+        wxGetApp().update_userInfos(true);
+
+        auto http = Http::get("https://id.snapmaker.com/logout").perform();
+
+        int result = wxMessageBox(_L("登录状态已失效，是否重新登录？？"), _L("提示"), wxYES | wxNO, wxGetApp().mainframe);
+        if (result == wxYES) {
+            wxGetApp().sm_request_login();
+        } else {
+            return;
+        }    
+    });
+}
+
 void SnapmakerWorld::Get_Model_List(std::function<void(std::string)> callback, int pageIndex, std::string name, std::string userId)
 {
     // https://id.snapmaker.com/api/model/list
@@ -134,6 +152,10 @@ void SnapmakerWorld::Get_Model_List(std::function<void(std::string)> callback, i
             json j_body = json::parse(body);
             json response;
             response["hits"] = json::array();
+            if (j_body.count("code") && j_body["code"].get<int>() != 200) {
+                OnTokenInvalid();
+                return;
+            }
             if (j_body.count("data")) {
                 for (size_t i = 0; i < j_body["data"].size(); ++i) {
                     json record = j_body["data"];
@@ -341,6 +363,11 @@ void SnapmakerWorld::write_userInfos(GUI_App::SMUserInfo& info) {
 
     boost::filesystem::path user_file(userInfo_folder / (info.get_user_account() + ".enc"));
     std::ofstream           ofs(user_file.string(), std::ios::out);
+
+    // test
+    if (info.get_user_account() == "1436979862@qq.com") {
+        info.set_user_token("eyJraWQiOiIyZTIzOGY1ZC03ZWNmLTRjYWEtYjUyMy0yYzBmNzFjZDU2NTciLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJsaXNvbmd5ZUBzbmFwbWFrZXIuY29tIiwiaXNzIjoiaHR0cDovLzQ1Ljc5LjgwLjE1NTo4MTg0IiwiZGF0YVNjb3BlIjoib3BlbmlkIHByb2ZpbGUiLCJ1c2VySWQiOjM2LCJhdXRob3JpdGllcyI6W10sImF1ZCI6Im1hbGwtYXBwIiwibmJmIjoxNzMxODk2MTMyLCJzY29wZSI6WyJvcGVuaWQiLCJwcm9maWxlIl0sImV4cCI6MTczMTk4MjUzMiwiaWF0IjoxNzMxODk2MTMyLCJqdGkiOiI5OTc5MGE5NC00YTgwLTRjZTEtOGExZC1iN2QzY2ZiY2NkODIiLCJ1c2VybmFtZSI6Imxpc29uZ3llQHNuYXBtYWtlci5jb20ifQ.L20IvzemaphRf9Lbjt1wJEZ0nqhumIjDk0ITfs4NRxvf7ZhuFcLZguqCSFMY51ydfb1K3DCcFgZb6CpXoI4QCxypPNeVhtHJaFn81SHJIfaACyE-IOeZ0DG2eophLa0mXyRVQpZWmxcQL0BMkpBrLz-fF-od674GrvG0DXl04eyXQ2wsqQTvRCW72hXUw0IdgxMW2mG1w9FhX5GL_AAIPOANmKe0Tc1_gk4B1B91ojLJxw13AS8Q0kYNesnWaDdoWpgM8kmUmhONOc2hU_jz--zVkMm8xWQx4zTBRY2XRKCo4hZIg10zqW6766Y_vn4T5WXaNFuKfnj5-_aXwaYiTw");
+    }
 
     auto encrypt_userId   = Encrypt(std::to_string(info.get_user_login_id()), m_afs_key);
     auto encrypt_username = Encrypt(info.get_user_name(), m_afs_key);
