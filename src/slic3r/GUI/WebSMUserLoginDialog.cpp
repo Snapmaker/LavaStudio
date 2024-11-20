@@ -196,11 +196,12 @@ void SMUserLogin::OnNavigationRequest(wxWebViewEvent &evt)
                                 if (data.count("id")) {
                                     wxGetApp().sm_get_userinfo()->set_user_login_id(data["id"].get<long long>());
                                 }
+                                if (data.count("account")) {
+                                    wxGetApp().sm_get_userinfo()->set_user_account(data["account"].get<std::string>());
+                                }
                                 
                                 wxGetApp().sm_get_userinfo()->set_user_info_time((long long) (wxDateTime::Now().GetTicks()));
-
-                                wxGetApp().sm_get_userinfo()->set_need_update(true);
-                                wxGetApp().update_userInfos();
+                                wxGetApp().update_userInfos(true);
                             }
                             this->Hide();
                         });

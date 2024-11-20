@@ -174,39 +174,6 @@ public:
     SourceViewDialog(wxWindow* parent, wxString source);
 };
 
-
-class SnapmakerWorld
-{
-public:
-    static SnapmakerWorld* GetInstance();
-
-    void Get_Model_Detail(std::function<void(std::string)> callback, std::string model_id);
-
-    void Get_Model_List(std::function<void(std::string)> callback,
-                        int pageIndex,
-                        std::string               name   = "",
-                        std::string               userId = "" /*todo: timerange*/);
-
-public:
-    void Update_Login_State(std::function<void(bool)> callback, std::string token);
-
-public:
-    int GetPageSize() { return m_pageSize; }
-
-private:
-    SnapmakerWorld();
-
-private:
-    std::string m_host_url = "https://id.snapmaker.com/";
-
-    std::map<std::string, std::string> m_api_url_map = {
-        {"GET_MODEL_DETAIL", "api/model/info?modelId="},
-        {"GET_MODEL_LIST", "api/model/list"},
-    };
-
-    int m_pageSize = 10;
-};
-
 } // GUI
 } // Slic3r
 

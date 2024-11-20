@@ -269,6 +269,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/Monitor.hpp
     GUI/WebViewDialog.cpp
     GUI/WebViewDialog.hpp
+    GUI/SnapmakerWorld.cpp
+    GUI/SnapmakerWorld.hpp
     GUI/PrinterWebView.cpp
     GUI/PrinterWebView.hpp
     GUI/WebDownPluginDlg.hpp

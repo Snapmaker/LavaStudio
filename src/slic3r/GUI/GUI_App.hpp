@@ -456,30 +456,62 @@ private:
     {
     public:
         bool is_user_login() { return m_login; }
-        void set_user_login(bool login) { m_login = login; }
+        void set_user_login(bool login)
+        {
+            m_login       = login;
+            m_need_update = true;
+        }
 
         std::string get_user_name() { return m_login_user_name; }
-        void     set_user_name(const std::string& name) { m_login_user_name = name; }
+        void        set_user_name(const std::string& name)
+        {
+            m_login_user_name = name;
+            m_need_update     = true;
+        }
 
         std::string get_user_token() { return m_login_user_token; }
-        void     set_user_token(const std::string& token) { m_login_user_token = token; }
+        void        set_user_token(const std::string& token)
+        {
+            m_login_user_token = token;
+            m_need_update      = true;
+        }
 
         std::string get_user_icon_url() { return m_login_user_icon_url; }
-        void     set_user_icon_url(const std::string& url) { m_login_user_icon_url = url; }
+        void        set_user_icon_url(const std::string& url)
+        {
+            m_login_user_icon_url = url;
+            m_need_update         = true;
+        }
 
         long long   get_user_info_time() { return m_login_user_time; }
-        void     set_user_info_time(long long time) { m_login_user_time = time; }
+        void      set_user_info_time(long long time)
+        {
+            m_login_user_time = time;
+            m_need_update     = true;
+        }
 
+        void     on_updated() { m_need_update = false; }
         bool     get_need_update() { return m_need_update; }
-        void     set_need_update(bool need) { m_need_update = need; }
 
         long long get_user_login_id() { return m_login_user_id; }
-        void      set_user_login_id(long long id) { m_login_user_id = id; }
+        void      set_user_login_id(long long id)
+        {
+            m_login_user_id = id;
+            m_need_update   = true;
+        }
+
+        std::string get_user_account() { return m_login_user_account; }
+        void        set_user_account(const std::string& account)
+        {
+            m_login_user_account = account;
+            m_need_update        = true;
+        }
     private:
         long long   m_login_user_id       = -1;
         std::string m_login_user_name = "";
         std::string m_login_user_token = "";
         std::string m_login_user_icon_url = "";
+        std::string m_login_user_account  = "";
         long long   m_login_user_time = -1;
         bool     m_login = false;
         bool     m_need_update = false;
@@ -717,9 +749,7 @@ private:
     void            restart_networking();
     void            check_config_updates_from_updater() { check_updates(false); }
 
-    void            read_userInfos();
-    void            write_userInfos();
-    void            update_userInfos();
+    void            update_userInfos(bool writen = false);
     void            update_Login_user();
 
 private:
@@ -753,8 +783,6 @@ private:
     std::string             m_open_method;
 
     SMUserInfo m_login_userinfo;
-
-    std::string m_afs_key = "SnapmakerOrcaSnapmakerOr";
 
 public:
     std::map<long long, SMUserInfo> m_userInfos;
