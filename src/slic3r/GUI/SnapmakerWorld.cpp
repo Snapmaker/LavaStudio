@@ -364,11 +364,6 @@ void SnapmakerWorld::write_userInfos(GUI_App::SMUserInfo& info) {
     boost::filesystem::path user_file(userInfo_folder / (info.get_user_account() + ".enc"));
     std::ofstream           ofs(user_file.string(), std::ios::out);
 
-    // test
-    if (info.get_user_account() == "1436979862@qq.com") {
-        info.set_user_token("eyJraWQiOiIyZTIzOGY1ZC03ZWNmLTRjYWEtYjUyMy0yYzBmNzFjZDU2NTciLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJsaXNvbmd5ZUBzbmFwbWFrZXIuY29tIiwiaXNzIjoiaHR0cDovLzQ1Ljc5LjgwLjE1NTo4MTg0IiwiZGF0YVNjb3BlIjoib3BlbmlkIHByb2ZpbGUiLCJ1c2VySWQiOjM2LCJhdXRob3JpdGllcyI6W10sImF1ZCI6Im1hbGwtYXBwIiwibmJmIjoxNzMxODk2MTMyLCJzY29wZSI6WyJvcGVuaWQiLCJwcm9maWxlIl0sImV4cCI6MTczMTk4MjUzMiwiaWF0IjoxNzMxODk2MTMyLCJqdGkiOiI5OTc5MGE5NC00YTgwLTRjZTEtOGExZC1iN2QzY2ZiY2NkODIiLCJ1c2VybmFtZSI6Imxpc29uZ3llQHNuYXBtYWtlci5jb20ifQ.L20IvzemaphRf9Lbjt1wJEZ0nqhumIjDk0ITfs4NRxvf7ZhuFcLZguqCSFMY51ydfb1K3DCcFgZb6CpXoI4QCxypPNeVhtHJaFn81SHJIfaACyE-IOeZ0DG2eophLa0mXyRVQpZWmxcQL0BMkpBrLz-fF-od674GrvG0DXl04eyXQ2wsqQTvRCW72hXUw0IdgxMW2mG1w9FhX5GL_AAIPOANmKe0Tc1_gk4B1B91ojLJxw13AS8Q0kYNesnWaDdoWpgM8kmUmhONOc2hU_jz--zVkMm8xWQx4zTBRY2XRKCo4hZIg10zqW6766Y_vn4T5WXaNFuKfnj5-_aXwaYiTw");
-    }
-
     auto encrypt_userId   = Encrypt(std::to_string(info.get_user_login_id()), m_afs_key);
     auto encrypt_username = Encrypt(info.get_user_name(), m_afs_key);
     auto encrypt_token    = Encrypt(info.get_user_token(), m_afs_key);
